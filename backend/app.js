@@ -5,6 +5,8 @@ import morgan from 'morgan'
 import cors from "cors";
 import connect from "./db/db.js";
 
+connect();
+
 const app=express();
 
 app.use(morgan("dev"));
