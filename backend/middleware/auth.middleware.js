@@ -24,7 +24,7 @@ export const authUser = async (req, res, next) => {
         next();
     } catch (error) {
 
-        console.log(error);git a
+        console.log(error);
 
         res.status(401).send({ error: 'Unauthorized User' });
     }
