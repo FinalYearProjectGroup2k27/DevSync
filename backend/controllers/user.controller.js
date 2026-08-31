@@ -20,7 +20,10 @@ export const createUserController = async (req, res) => {
 
         res.status(201).json({ user, token });
     } catch (error) {
-        res.status(400).send(error.message);
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'User with this email already exists' });
+        }
+        res.status(400).json({ error: error.message });
     }
 }
 
@@ -39,7 +42,7 @@ export const loginController = async (req, res) => {
 
         if (!user) {
             return res.status(401).json({
-                errors: 'Invalid credentials'
+                error: 'Invalid credentials'
             })
         }
 
@@ -47,7 +50,7 @@ export const loginController = async (req, res) => {
 
         if (!isMatch) {
             return res.status(401).json({
-                errors: 'Invalid credentials'
+                error: 'Invalid credentials'
             })
         }
 
@@ -62,7 +65,7 @@ export const loginController = async (req, res) => {
 
         console.log(err);
 
-        res.status(400).send(err.message);
+        res.status(400).json({ error: err.message });
     }
 }
 

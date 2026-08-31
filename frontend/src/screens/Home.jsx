@@ -7,24 +7,28 @@ const Home = () => {
 
     const { user } = useContext(UserContext)
     const [ isModalOpen, setIsModalOpen ] = useState(false)
-    const [ projectName, setProjectName ] = useState(null)
+    const [ projectName, setProjectName ] = useState('')
     const [ project, setProject ] = useState([])
 
     const navigate = useNavigate()
 
     function createProject(e) {
         e.preventDefault()
-        console.log({ projectName })
 
         axios.post('/projects/create', {
             name: projectName,
         })
             .then((res) => {
-                console.log(res)
                 setIsModalOpen(false)
+                setProjectName('')
+                const createdProject = res.data.project || res.data
+                setProject(prev => [...prev, createdProject])
+                navigate('/project', {
+                    state: { project: createdProject }
+                })
             })
             .catch((error) => {
-                console.log(error)
+                console.error("Error creating project:", error)
             })
     }
 
@@ -37,6 +41,7 @@ const Home = () => {
         })
 
     }, [])
+
 
     return (
         <main className='p-4'>
@@ -63,7 +68,7 @@ const Home = () => {
 
                             <div className="flex gap-2">
                                 <p> <small> <i className="ri-user-line"></i> Collaborators</small> :</p>
-                                {project.users.length}
+                                {project.users?.length || 0}
                             </div>
 
                         </div>

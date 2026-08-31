@@ -6,10 +6,12 @@ const Project = () => {
 
     const location = useLocation()
 
+    const navigate = useNavigate()
+
     const [ isSidePanelOpen, setIsSidePanelOpen ] = useState(false)
     const [ isModalOpen, setIsModalOpen ] = useState(false)
     const [ selectedUserId, setSelectedUserId ] = useState([])
-    const [ project, setProject ] = useState(location.state.project)
+    const [ project, setProject ] = useState(location.state?.project || null)
 
     const [ users, setUsers ] = useState([])
 
@@ -24,48 +26,46 @@ const Project = () => {
 
             return newSelectedUserId;
         });
-
-
     }
 
-
     function addCollaborators() {
+        const currentProjectId = location.state?.project?._id || project?._id
+        if (!currentProjectId) return
 
         axios.put("/projects/add-user", {
-            projectId: location.state.project._id,
+            projectId: currentProjectId,
             users: Array.from(selectedUserId)
         }).then(res => {
-            console.log(res.data)
             setIsModalOpen(false)
-
+            if (res.data.project) {
+                setProject(res.data.project)
+            }
         }).catch(err => {
-            console.log(err)
+            console.error("Error adding collaborators:", err)
         })
-
     }
 
     useEffect(() => {
+        const currentProjectId = location.state?.project?._id || project?._id
 
-        axios.get(`/projects/get-project/${location.state.project._id}`).then(res => {
+        if (!currentProjectId) {
+            navigate('/')
+            return
+        }
 
-            console.log(res.data.project)
-
+        axios.get(`/projects/get-project/${currentProjectId}`).then(res => {
             setProject(res.data.project)
+        }).catch(err => {
+            console.error("Error fetching project:", err)
         })
-
-
 
         axios.get('/users/all').then(res => {
-
             setUsers(res.data.users)
-
         }).catch(err => {
-
-            console.log(err)
-
+            console.error("Error fetching users:", err)
         })
 
-    }, [])
+    }, [location.state, navigate])
 
     return (
         <main className='h-screen w-screen flex'>
@@ -108,19 +108,15 @@ const Project = () => {
                     </header>
                     <div className="users flex flex-col gap-2">
 
-                        {project.users && project.users.map(user => {
-
-
+                        {project?.users && project.users.map(user => {
                             return (
-                                <div className="user cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center">
+                                <div key={user._id} className="user cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center">
                                     <div className='aspect-square rounded-full w-fit h-fit flex items-center justify-center p-5 text-white bg-slate-600'>
                                         <i className="ri-user-fill absolute"></i>
                                     </div>
                                     <h1 className='font-semibold text-lg'>{user.email}</h1>
                                 </div>
                             )
-
-
                         })}
                     </div>
                 </div>
@@ -136,7 +132,7 @@ const Project = () => {
                         </header>
                         <div className="users-list flex flex-col gap-2 mb-16 max-h-96 overflow-auto">
                             {users.map(user => (
-                                <div key={user.id} className={`user cursor-pointer hover:bg-slate-200 ${Array.from(selectedUserId).indexOf(user._id) != -1 ? 'bg-slate-200' : ""} p-2 flex gap-2 items-center`} onClick={() => handleUserClick(user._id)}>
+                                <div key={user._id} className={`user cursor-pointer hover:bg-slate-200 ${Array.from(selectedUserId).indexOf(user._id) != -1 ? 'bg-slate-200' : ""} p-2 flex gap-2 items-center`} onClick={() => handleUserClick(user._id)}>
                                     <div className='aspect-square relative rounded-full w-fit h-fit flex items-center justify-center p-5 text-white bg-slate-600'>
                                         <i className="ri-user-fill absolute"></i>
                                     </div>
