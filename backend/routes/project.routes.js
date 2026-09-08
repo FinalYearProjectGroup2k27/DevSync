@@ -8,7 +8,7 @@ const router = Router();
 
 router.post('/create',
     authMiddleWare.authUser,
-    body('name').isString().withMessage('Name is required'),
+    body('name').trim().notEmpty().withMessage('Project name is required'),
     projectController.createProject
 )
 

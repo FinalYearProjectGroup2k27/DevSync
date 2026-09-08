@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import axios from '../config/axios'
+import { initializeSocket, recieveMessage, removeListener, disconnectSocket, sendMessage } from '../config/socket'
+import { UserContext } from '../context/user.context'
+
 
 const Project = () => {
 
@@ -8,12 +11,15 @@ const Project = () => {
 
     const navigate = useNavigate()
 
-    const [ isSidePanelOpen, setIsSidePanelOpen ] = useState(false)
-    const [ isModalOpen, setIsModalOpen ] = useState(false)
-    const [ selectedUserId, setSelectedUserId ] = useState([])
-    const [ project, setProject ] = useState(location.state?.project || null)
+    const [isSidePanelOpen, setIsSidePanelOpen] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [selectedUserId, setSelectedUserId] = useState([])
+    const [project, setProject] = useState(location.state?.project || null)
+    const [message, setMessage] = useState('')
+    const [messages, setMessages] = useState([])
+    const { user } = useContext(UserContext)
 
-    const [ users, setUsers ] = useState([])
+    const [users, setUsers] = useState([])
 
     const handleUserClick = (id) => {
         setSelectedUserId(prevSelectedUserId => {
@@ -45,6 +51,20 @@ const Project = () => {
         })
     }
 
+    const send = () => {
+        if (!message.trim()) return
+
+        sendMessage('project-message', {
+            message,
+            sender: user
+        })
+        setMessages(prevMessages => [...prevMessages, { sender: user, message }]) // Update messages state
+        setMessage("")
+
+    }
+
+    const messageBoxRef = useRef(null)
+
     useEffect(() => {
         const currentProjectId = location.state?.project?._id || project?._id
 
@@ -52,6 +72,14 @@ const Project = () => {
             navigate('/')
             return
         }
+
+        initializeSocket(currentProjectId);
+
+        const handleProjectMessage = (data) => {
+            setMessages(prevMessages => [...prevMessages, data])
+        }
+
+        recieveMessage('project-message', handleProjectMessage)
 
         axios.get(`/projects/get-project/${currentProjectId}`).then(res => {
             setProject(res.data.project)
@@ -65,7 +93,18 @@ const Project = () => {
             console.error("Error fetching users:", err)
         })
 
+        return () => {
+            removeListener('project-message', handleProjectMessage)
+            disconnectSocket()
+        }
+
     }, [location.state, navigate])
+
+    useEffect(() => {
+        if (messageBoxRef.current) {
+            messageBoxRef.current.scrollTop = messageBoxRef.current.scrollHeight
+        }
+    }, [messages])
 
     return (
         <main className='h-screen w-screen flex'>
@@ -79,20 +118,37 @@ const Project = () => {
                         <i className="ri-group-fill"></i>
                     </button>
                 </header>
-                <div className="conversation-area flex-grow flex flex-col">
-                    <div className="message-box p-1 flex-grow flex flex-col gap-1">
-                        <div className="message max-w-56 flex flex-col p-2 bg-slate-50 w-fit rounded-md">
-                            <small className='opacity-65 text-xs'>example@gmail.com</small>
-                            <p className='text-sm'>Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.</p>
-                        </div>
-                        <div className="ml-auto max-w-56 message flex flex-col p-2 bg-slate-50 w-fit rounded-md">
-                            <small className='opacity-65 text-xs'>example@gmail.com</small>
-                            <p className='text-sm'>Lorem ipsum dolor sit amet.</p>
-                        </div>
+                <div className="conversation-area flex-grow flex flex-col h-[calc(100%-48px)]">
+                    <div
+                        ref={messageBoxRef}
+                        className="message-box p-2 flex-grow flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-100px)]">
+                        {messages.map((msg, index) => {
+                            const isOutgoing = (msg.sender?._id || msg.sender) === (user?._id || user);
+                            return (
+                                <div
+                                    key={index}
+                                    className={`message max-w-56 flex flex-col p-2 bg-slate-50 w-fit rounded-md ${isOutgoing ? 'ml-auto' : ''}`}
+                                >
+                                    <small className='opacity-65 text-xs'>{msg.sender?.email || 'Unknown'}</small>
+                                    <p className='text-sm'>{msg.message}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                     <div className="inputField w-full flex">
-                        <input className='p-2 px-4 border-none outline-none flex-grow' type="text" placeholder='Enter message' />
-                        <button className='px-5 bg-slate-950 text-white'><i className="ri-send-plane-fill"></i></button>
+                        <input
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    send();
+                                }
+                            }}
+                            className='p-2 px-4 border-none outline-none flex-grow'
+                            type="text"
+                            placeholder='Enter message'
+                        />
+                        <button onClick={send} className='px-5 bg-slate-950 text-white'><i className="ri-send-plane-fill"></i></button>
                     </div>
                 </div>
                 <div className={`sidePanel w-full h-full flex flex-col gap-2 bg-slate-50 absolute transition-all ${isSidePanelOpen ? 'translate-x-0' : '-translate-x-full'} top-0`}>

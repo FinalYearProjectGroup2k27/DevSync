@@ -16,6 +16,9 @@ export const createProject = async (req, res) => {
 
         const { name } = req.body;
         const loggedInUser = await userModel.findOne({ email: req.user.email });
+        if (!loggedInUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
         const userId = loggedInUser._id;
 
         const newProject = await projectService.createProject({ name, userId });
@@ -37,6 +40,10 @@ export const getAllProject = async (req, res) => {
         const loggedInUser = await userModel.findOne({
             email: req.user.email
         })
+
+        if (!loggedInUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
 
         const allUserProjects = await projectService.getAllProjectByUserId({
             userId: loggedInUser._id
